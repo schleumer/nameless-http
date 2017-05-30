@@ -13,7 +13,30 @@ use tokio_service::Service;
 use tokio_proto::TcpServer;
 use futures::{future, Future, BoxFuture};
 
-pub struct LineCodec;
+pub enum RequestType {
+    Request,
+    Response
+}
+
+pub struct ParameterPair {
+    key: String,
+    value: String,
+}
+
+pub struct ParameterBag {
+    bag: Vec<ParameterPair>,
+}
+
+pub struct HttpMessage {
+    headers: Vec<ParameterBag>,
+    body: Vec<u8>,
+    message_type: RequestType,
+}
+
+pub struct LineCodec {
+    context: String
+}
+
 pub struct LineProto;
 pub struct Echo;
 
@@ -23,22 +46,32 @@ impl Decoder for LineCodec {
     type Error = io::Error;
 
     fn decode(&mut self, buf: &mut BytesMut) -> io::Result<Option<String>> {
-        if let Some(i) = buf.iter().position(|&b| b == b'\n') {
-            // remove the serialized frame from the buffer.
-            let line = buf.split_to(i);
+        println!("{:?}", self.context);
 
-            // Also remove the '\n'
-            buf.split_to(1);
+//        match str::from_utf8(&buf) {
+//            Ok(s) => println!("{}", s),
+//            Err(_) => println!("ops")
+//        }
 
-            // Turn this data into a UTF string and return it in a Frame.
-            match str::from_utf8(&line) {
-                Ok(s) => Ok(Some(s.to_string())),
-                Err(_) => Err(io::Error::new(io::ErrorKind::Other,
-                                             "invalid UTF-8")),
-            }
-        } else {
-            Ok(None)
-        }
+
+
+        Ok(None)
+//        if let Some(i) = buf.iter().position(|&b| b == b'\n') {
+//            // remove the serialized frame from the buffer.
+//            let line = buf.split_to(i);
+//
+//            // Also remove the '\n'
+//            buf.split_to(1);
+//
+//            // Turn this data into a UTF string and return it in a Frame.
+//            match str::from_utf8(&line) {
+//                Ok(s) => Ok(Some(s.to_string())),
+//                Err(_) => Err(io::Error::new(io::ErrorKind::Other,
+//                                             "invalid UTF-8")),
+//            }
+//        } else {
+//            Ok(None)
+//        }
     }
 
 }
@@ -48,10 +81,7 @@ impl Encoder for LineCodec {
     type Error = io::Error;
 
     fn encode(&mut self, msg: String, buf: &mut BytesMut) -> io::Result<()> {
-        println!("{:?}", msg.as_bytes());
-
         buf.extend(msg.as_bytes());
-        buf.extend(b"\n");
         Ok(())
     }
 
@@ -71,7 +101,7 @@ impl<T: AsyncRead + AsyncWrite + 'static> ServerProto<T> for LineProto {
     type Transport = Framed<T, LineCodec>;
     type BindTransport = Result<Self::Transport, io::Error>;
     fn bind_transport(&self, io: T) -> Self::BindTransport {
-        Ok(io.framed(LineCodec))
+        Ok(io.framed(LineCodec { context: "lol".to_string() }))
     }
 }
 
